@@ -6,7 +6,21 @@ let
   settingsFormat = pkgs.formats.json { };
   defaultUser = "inventree";
   defaultGroup = defaultUser;
-  configFile = pkgs.writeText "config.yaml" (builtins.toJSON cfg.config);
+  config = cfg.extraConfig // {
+    database = {
+      ENGINE = "sqlite";
+      NAME = "/mnt/pool/inventree-data/database.sqlite";
+    };
+    #debug = false;
+    social_backends = [];
+    social_providers = {};
+    secret_key_file = config.age.secrets.inventree-secret.path;
+    static_i18_root = cfg.staticI18Root;
+    static_root = cfg.staticRoot;
+    media_root = cfg.mediaRoot;
+    backup_dir = cfg.backupDir;
+  }
+  configFile = pkgs.writeText "config.yaml" (builtins.toJSON config);
   usersFile = pkgs.writeText "users.json" (builtins.toJSON cfg.users);
   inventree = pkgs.inventree;
 
@@ -16,9 +30,9 @@ let
 
   systemdDir = prefix: concatStringsSep " " ([]
     ++ (singletonIfPrefix prefix cfg.dataDir)
-    ++ (singletonIfPrefix prefix cfg.config.static_root)
-    ++ (singletonIfPrefix prefix cfg.config.media_root)
-    ++ (singletonIfPrefix prefix cfg.config.backup_dir)
+    ++ (singletonIfPrefix prefix config.static_root)
+    ++ (singletonIfPrefix prefix config.media_root)
+    ++ (singletonIfPrefix prefix config.backup_dir)
   );
 
   maybeSystemdDir = prefix:
@@ -71,7 +85,7 @@ in
     };
 
     dataDir = mkOption {
-      type = types.str;
+      type = types.path;
       default = "/var/lib/inventree";
       example = "/home/yourUser";
       description = lib.mdDoc ''
@@ -101,18 +115,41 @@ in
     };
 
     configPath = mkOption {
-      type = types.str;
+      type = types.path;
       default = cfg.dataDir + "/config.yaml";
       description = lib.mdDoc ''
         Path to config.yaml (automatically created)
       '';
     };
 
-    config = mkOption {
+    staticRoot = mkOption {
+      type = types.path;
+      default = cfg.dataDir + "/static";
+      description = lib.mdDoc ''
+        static_root
+      '';
+    };
+
+    staticI18Root = mkOption {
+      type = types.path;
+      default = cfg.dataDir + "/static_i18";
+    };
+
+    mediaRoot = mkOption {
+      type = types.path;
+      default = cfg.dataDir + "/media";
+    };
+
+    backupDir = mkOption {
+      type = types.path;
+      default = cfg.dataDir + "/backup";
+    };
+
+    extraConfig = mkOption {
       type = types.attrs;
       default = {};
       description = lib.mdDoc ''
-        Config options, see https://docs.inventree.org/en/stable/start/config/
+        Extra config options, see https://docs.inventree.org/en/stable/start/config/
         for details
       '';
     };
